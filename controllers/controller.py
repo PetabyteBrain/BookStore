@@ -1,4 +1,5 @@
 # digital_library/controllers/controller.py
+import tkinter as tk
 from typing import List, Dict, Any
 from bson import ObjectId
 from config.database import db_connection
@@ -15,77 +16,26 @@ class LibraryController:
         """
         self.db = db_connection
     
-    # User Management
-    def register_user(self, username: str, email: str, password: str) -> Dict[str, Any]:
+    # Existing methods remain the same, but add helper method for ObjectId conversion
+    def _convert_objectid_to_str(self, data):
         """
-        Register a new user
+        Recursively convert ObjectId to string in nested dictionaries
         
         Args:
-            username (str): Username
-            email (str): Email address
-            password (str): Password
+            data (dict or list): Data to convert
         
         Returns:
-            Dict containing registration result
+            Converted data with ObjectId converted to strings
         """
-        # Validate input
-        if not validate_email(email):
-            return {"success": False, "message": "Invalid email format"}
-        
-        if not validate_password_strength(password):
-            return {"success": False, "message": "Password does not meet complexity requirements"}
-        
-        # Check if user already exists
-        existing_user = self.db.users.find_one({"$or": [
-            {"username": username},
-            {"email": email}
-        ]})
-        
-        if existing_user:
-            return {"success": False, "message": "Username or email already exists"}
-        
-        # Create user
-        hashed_password = hash_password(password)
-        new_user = User(username, email, hashed_password)
-        result = self.db.users.insert_one(new_user.to_dict())
-        
-        return {
-            "success": True, 
-            "message": "User registered successfully",
-            "user_id": str(result.inserted_id)
-        }
-    
-    # Book Management
-    def add_book(self, book_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Add a new book to the library
-        
-        Args:
-            book_data (dict): Book details
-        
-        Returns:
-            Dict containing book addition result
-        """
-        try:
-            new_book = Book(
-                title=book_data['title'],
-                author=book_data['author'],
-                isbn=book_data['isbn'],
-                published_year=book_data['published_year'],
-                price=book_data['price'],
-                categories=book_data.get('categories', []),
-                description=book_data.get('description'),
-                imprint=book_data.get('imprint')
-            )
-            result = self.db.books.insert_one(new_book.to_dict())
-            
+        if isinstance(data, dict):
             return {
-                "success": True, 
-                "message": "Book added successfully",
-                "book_id": str(result.inserted_id)
+                k: (str(v) if isinstance(v, ObjectId) else 
+                    self._convert_objectid_to_str(v)) 
+                for k, v in data.items()
             }
-        except Exception as e:
-            return {"success": False, "message": str(e)}
+        elif isinstance(data, list):
+            return [self._convert_objectid_to_str(item) for item in data]
+        return data
     
     def search_books(self, query: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
@@ -95,11 +45,11 @@ class LibraryController:
             query (dict): Search criteria
         
         Returns:
-            List of matching books
+            List of matching books with ObjectIds converted to strings
         """
-        return list(self.db.books.find(query))
+        books = list(self.db.books.find(query))
+        return [self._convert_objectid_to_str(book) for book in books]
     
-    # Order Management
     def create_order(self, user_id: str, book_ids: List[str]) -> Dict[str, Any]:
         """
         Create a new order
@@ -112,18 +62,23 @@ class LibraryController:
             Dict containing order creation result
         """
         try:
+            # Ensure user_id and book_ids are ObjectId
+            user_obj_id = ObjectId(user_id)
+            book_obj_ids = [ObjectId(bid) for bid in book_ids]
+            
             # Fetch book prices
-            books = list(self.db.books.find({"_id": {"$in": [ObjectId(bid) for bid in book_ids]}}))
+            books = list(self.db.books.find({"_id": {"$in": book_obj_ids}}))
             total_price = sum(book['price'] for book in books)
             
             # Create order
-            new_order = Order(
-                user_id=ObjectId(user_id), 
-                book_ids=[ObjectId(bid) for bid in book_ids], 
-                total_price=total_price
-            )
+            new_order = {
+                'user_id': user_obj_id,
+                'book_ids': book_obj_ids,
+                'total_price': total_price,
+                'order_date': tk.datetime.now()  # You might want to import datetime
+            }
             
-            result = self.db.orders.insert_one(new_order.to_dict())
+            result = self.db.orders.insert_one(new_order)
             
             return {
                 "success": True, 

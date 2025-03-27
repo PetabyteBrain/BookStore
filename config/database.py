@@ -10,7 +10,7 @@ class DatabaseConnection:
     def __init__(self, 
                  host='localhost', 
                  port=27017, 
-                 database='digital_library'):
+                 database='db'):  # Changed default database name to 'db'
         """
         Initialize MongoDB connection
         
