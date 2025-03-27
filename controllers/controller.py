@@ -88,3 +88,50 @@ class LibraryController:
             }
         except Exception as e:
             return {"success": False, "message": str(e)}
+        
+    def add_book(self, book_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Add a new book to the database
+        
+        Args:
+            book_data (dict): Dictionary containing book information
+        
+        Returns:
+            Dict containing book addition result
+        """
+        try:
+            # Validate required fields
+            required_fields = ['title', 'author', 'isbn', 'published_year', 'price']
+            for field in required_fields:
+                if not book_data.get(field):
+                    return {
+                        "success": False, 
+                        "message": f"Missing required field: {field}"
+                    }
+            
+            # Prepare book data for insertion
+            new_book = {
+                'title': book_data['title'],
+                'author': book_data['author'],
+                'isbn': book_data['isbn'],
+                'publishedYear': book_data['published_year'],
+                'price': book_data['price'],
+                'categories': book_data.get('categories', []),
+                'description': book_data.get('description', ''),
+                'imprint': book_data.get('imprint', '')
+            }
+            
+            # Insert the book
+            result = self.db.books.insert_one(new_book)
+            
+            return {
+                "success": True, 
+                "message": "Book added successfully",
+                "book_id": str(result.inserted_id)
+            }
+        
+        except Exception as e:
+            return {
+                "success": False, 
+                "message": f"Error adding book: {str(e)}"
+            }
