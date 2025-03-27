@@ -112,13 +112,17 @@ class BookView(tk.Frame):
         books = self.controller.search_books(query)
         
         for book in books:
+            # Convert categories to strings if they are ObjectId
+            categories = book.get('categories', [])
+            categories_str = ', '.join(str(cat) for cat in categories) if categories else ''
+            
             self.book_table.insert('', 'end', values=(
                 book.get('title', ''),
                 book.get('author', ''),
                 book.get('isbn', ''),
                 book.get('publishedYear', ''),
                 book.get('price', ''),
-                ', '.join(book.get('categories', []))
+                categories_str
             ))
     
     def add_book(self):
