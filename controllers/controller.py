@@ -135,31 +135,139 @@ class LibraryController:
                 "success": False, 
                 "message": f"Error adding book: {str(e)}"
             }
-    def delete_book(self, isbn: str) -> Dict[str, Any]:
+    
+    def edit_book(self, original_isbn: str, book_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Delete a book from the database by ISBN
+        Edit a book in the database
         
         Args:
-            isbn (str): ISBN of the book to delete
+            original_isbn (str): Original ISBN to identify the book
+            book_data (dict): Updated book information
         
+        Returns:
+            Dict containing book edit result
+        """
+        try:
+            # Validate required fields
+            required_fields = ['title', 'author', 'isbn', 'published_year', 'price']
+            for field in required_fields:
+                if not book_data.get(field):
+                    return {
+                        "success": False, 
+                        "message": f"Missing required field: {field}"
+                    }
+            
+            # Prepare book data for update
+            update_data = {
+                'title': book_data['title'],
+                'author': book_data['author'],
+                'isbn': book_data['isbn'],
+                'publishedYear': book_data['published_year'],
+                'price': book_data['price'],
+                'categories': book_data.get('categories', []),
+                'description': book_data.get('description', ''),
+                'imprint': book_data.get('imprint', '')
+            }
+            
+            # Try multiple ways to find the book
+            result = self.db.books.update_one(
+                # Try multiple query methods to find the book
+                {
+                    '$or': [
+                        {'isbn': original_isbn},  # Exact ISBN match
+                        {'isbn': {'$regex': f'^{original_isbn}$', '$options': 'i'}},  # Case-insensitive exact match
+                        {'isbn': str(original_isbn)}  # Ensure string conversion
+                    ]
+                },
+                {'$set': update_data}
+            )
+            
+            if result.modified_count > 0:
+                return {
+                    "success": True, 
+                    "message": "Book updated successfully"
+                }
+            else:
+                # If no book was found, provide more diagnostic information
+                # Try to find why the book wasn't found
+                existing_book = self.db.books.find_one({'isbn': original_isbn})
+                
+                if existing_book:
+                    print(f"Existing book found: {existing_book}")
+                    return {
+                        "success": False, 
+                        "message": "Book found but not updated. Check data types and field names."
+                    }
+                else:
+                    return {
+                        "success": False, 
+                        "message": f"No book found with ISBN: {original_isbn}"
+                    }
+        
+        except Exception as e:
+            return {
+                "success": False, 
+                "message": f"Error updating book: {str(e)}"
+            }
+        
+    def delete_book(self, isbn):
+        """
+        Delete a book from the database by ISBN
+
+        Args:
+            isbn: ISBN of the book to delete (can be int or str)
+
         Returns:
             Dict containing book deletion result
         """
         try:
-            # Find and delete the book
-            result = self.db.books.delete_one({'isbn': isbn})
-            
-            if result.deleted_count > 0:
-                return {
-                    "success": True, 
-                    "message": "Book deleted successfully"
-                }
+            # Convert isbn to string if it's not already a string
+            isbn = str(isbn).strip()
+
+            # First, try to find the book to understand why it's not being found
+            existing_book = self.db.books.find_one({'isbn': isbn})
+
+            if existing_book:
+                # Print out the book details for debugging
+                print("Book found:", existing_book)
+
+                # Ensure case-insensitive and whitespace-stripped comparison
+                result = self.db.books.delete_one({
+                    'isbn': {'$regex': f'^{isbn}$', '$options': 'i'}
+                })
+
+                if result.deleted_count > 0:
+                    return {
+                        "success": True, 
+                        "message": "Book deleted successfully"
+                    }
+                else:
+                    return {
+                        "success": False, 
+                        "message": "Book found but could not be deleted"
+                    }
             else:
+                # Try more flexible search methods
+                # Look for partial matches or whitespace variations
+                flexible_search = self.db.books.find_one({
+                    'isbn': {'$regex': f'{isbn}', '$options': 'i'}
+                })
+
+                if flexible_search:
+                    print("Flexible match found:", flexible_search)
+                    result = self.db.books.delete_one({'_id': flexible_search['_id']})
+
+                    if result.deleted_count > 0:
+                        return {
+                            "success": True, 
+                            "message": "Book deleted successfully (flexible match)"
+                        }
+
                 return {
                     "success": False, 
-                    "message": "Book not found"
+                    "message": f"No book found with ISBN: {isbn}"
                 }
-        
+
         except Exception as e:
             return {
                 "success": False, 
