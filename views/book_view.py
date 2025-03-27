@@ -187,5 +187,23 @@ class BookView(tk.Frame):
             messagebox.showwarning("Warning", "Please select a book to delete")
             return
         
-        # Implement delete book logic
-        messagebox.showinfo("Info", "Delete book functionality to be implemented")
+        # Get the book details from the selected row
+        book_details = self.book_table.item(selected_item[0])['values']
+        
+        # Confirm deletion
+        confirm = messagebox.askyesno("Confirm Deletion", 
+            f"Are you sure you want to delete the book:\n\nTitle: {book_details[0]}\nAuthor: {book_details[1]}\nISBN: {book_details[2]}")
+        
+        if confirm:
+            try:
+                # Find the book in the database using the ISBN (assuming it's unique)
+                result = self.controller.delete_book(book_details[2])
+                
+                if result['success']:
+                    messagebox.showinfo("Success", result['message'])
+                    self.load_books()  # Refresh the book table
+                else:
+                    messagebox.showerror("Error", result['message'])
+            
+            except Exception as e:
+                messagebox.showerror("Error", f"An error occurred: {str(e)}")

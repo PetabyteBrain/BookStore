@@ -92,10 +92,10 @@ class LibraryController:
     def add_book(self, book_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Add a new book to the database
-        
+
         Args:
             book_data (dict): Dictionary containing book information
-        
+
         Returns:
             Dict containing book addition result
         """
@@ -108,7 +108,7 @@ class LibraryController:
                         "success": False, 
                         "message": f"Missing required field: {field}"
                     }
-            
+
             # Prepare book data for insertion
             new_book = {
                 'title': book_data['title'],
@@ -120,18 +120,48 @@ class LibraryController:
                 'description': book_data.get('description', ''),
                 'imprint': book_data.get('imprint', '')
             }
-            
+
             # Insert the book
             result = self.db.books.insert_one(new_book)
-            
+
             return {
                 "success": True, 
                 "message": "Book added successfully",
                 "book_id": str(result.inserted_id)
             }
-        
+
         except Exception as e:
             return {
                 "success": False, 
                 "message": f"Error adding book: {str(e)}"
+            }
+    def delete_book(self, isbn: str) -> Dict[str, Any]:
+        """
+        Delete a book from the database by ISBN
+        
+        Args:
+            isbn (str): ISBN of the book to delete
+        
+        Returns:
+            Dict containing book deletion result
+        """
+        try:
+            # Find and delete the book
+            result = self.db.books.delete_one({'isbn': isbn})
+            
+            if result.deleted_count > 0:
+                return {
+                    "success": True, 
+                    "message": "Book deleted successfully"
+                }
+            else:
+                return {
+                    "success": False, 
+                    "message": "Book not found"
+                }
+        
+        except Exception as e:
+            return {
+                "success": False, 
+                "message": f"Error deleting book: {str(e)}"
             }

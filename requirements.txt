@@ -1,0 +1,13 @@
+# Requirements for Digital Library Application
+
+# Core Python Libraries
+tkinter
+bson
+datetime
+
+# Database Libraries
+pymongo==4.6.1
+python-dotenv==1.0.0
+
+# Optional but recommended
+typing
